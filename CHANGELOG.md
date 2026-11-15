@@ -8,6 +8,25 @@ pre-1.0 caveat: **the API is unstable until v1.0.0, so breaking changes may land
 minor (0.x) releases.** Breaking changes are always called out explicitly below.
 
 
+## [0.109.1]. 2026-11-15
+
+A Gemini reply translated to OpenAI no longer carries the model's reasoning in its answer.
+Nothing changes for any other venue, for a streamed reply, or for a Gemini client.
+
+### Fixed
+
+- **`gemini_to_openai_response` put thought text into `content`.** It joined the `text` of
+  every part, and a thinking Gemini model marks its reasoning parts `"thought": true`:
+  parts `{"thought":true,"text":"Let me calculate. "}` and `{"text":"42"}` answered
+  `"Let me calculate. 42"`. A part is now skipped when its `thought` is the boolean true,
+  as `gemini_facts` already read it (a thought is not a first token). The reasoning is
+  dropped, not moved to another field, which is what the translators do with Anthropic
+  thinking; its tokens still reach `completion_tokens_details.reasoning_tokens`. A reply
+  made only of thought, cut at `MAX_TOKENS`, now has empty content and `length`. Reported
+  on 2026-11-13 from a clean build of 0.109.0. Three tests in `translate_test.cpp` fail
+  without the change: the reported reply, `false`, `"true"` and `null` kept as text, and a
+  reply of only thought.
+
 ## [0.109.0]. 2026-11-12
 
 A release image, so llmbridge runs from a registry. The ENTERPILOT AI gateway benchmark

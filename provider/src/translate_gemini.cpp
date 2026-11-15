@@ -60,6 +60,12 @@ namespace llmbridge::provider
                 return true;
             }
         };
+
+        bool is_thought(const json::Value& part)
+        {
+            const json::Value* t = part.find("thought");
+            return t && t->type == json::Value::Type::Bool && t->boolean;
+        }
     } // namespace
 
     // The model is not in the body: Gemini names it in the path (VenueSpec::target).
@@ -135,9 +141,7 @@ namespace llmbridge::provider
             if (!parts || !parts->is_array()) continue;
             for (const json::Value& part : parts->arr)
             {
-                const json::Value* thought = part.find("thought");
-                const bool is_thought = thought && thought->type == json::Value::Type::Bool && thought->boolean;
-                if (is_thought) f.thinking = true;
+                if (is_thought(part)) f.thinking = true;
                 else if (!part.str_or("text").empty() || part.find("functionCall") || part.find("inlineData") ||
                          part.find("executableCode"))
                     f.token = true;
@@ -200,7 +204,8 @@ namespace llmbridge::provider
         e.choice();
         out += "\"role\":\"assistant\",\"content\":\"";
         if (parts)
-            for (const auto& part : parts->arr) out += part.str_or("text");
+            for (const auto& part : parts->arr)
+                if (!is_thought(part)) out += part.str_or("text");
         out += '"';
         e.end_choice(openai::finish_name(finish)).close(&usage, false, total);
         return true;

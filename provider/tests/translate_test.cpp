@@ -467,6 +467,33 @@ TEST(GeminiResp, JoinsPartsAndMapsUsage)
     EXPECT_EQ(u->find("completion_tokens_details")->num_or("reasoning_tokens"), "2");
 }
 
+TEST(GeminiResp, ThoughtPartsAreNotTheAnswer)
+{
+    std::string in = R"({"candidates":[{"content":{"role":"model","parts":[
+        {"thought":true,"text":"Let me calculate. "},{"text":"42"}]},"finishReason":"STOP"}]})";
+    Value out = P(gemini_to_openai_response(in));
+    EXPECT_EQ(out.find("choices")->arr[0].find("message")->str_or("content"), "42");
+}
+
+TEST(GeminiResp, OnlyABooleanTrueMarksAThought)
+{
+    std::string in = R"({"candidates":[{"content":{"parts":[
+        {"thought":false,"text":"a"},{"thought":"true","text":"b"},{"thought":null,"text":"c"},
+        {"thought":true,"text":"hidden"},{"text":"d"}]},"finishReason":"STOP"}]})";
+    Value out = P(gemini_to_openai_response(in));
+    EXPECT_EQ(out.find("choices")->arr[0].find("message")->str_or("content"), "abcd");
+}
+
+TEST(GeminiResp, AReplyOfOnlyThoughtHasEmptyContent)
+{
+    std::string in = R"({"candidates":[{"content":{"parts":[{"thought":true,"text":"hmm"}]},
+        "finishReason":"MAX_TOKENS"}]})";
+    Value out = P(gemini_to_openai_response(in));
+    const Value& c = out.find("choices")->arr[0];
+    EXPECT_EQ(c.find("message")->str_or("content"), "");
+    EXPECT_EQ(c.str_or("finish_reason"), "length");
+}
+
 TEST(GeminiResp, NoDetailsBlockWhenGeminiStatesNone)
 {
     std::string in = R"({"candidates":[{"content":{"parts":[{"text":"x"}]},"finishReason":"STOP"}],
